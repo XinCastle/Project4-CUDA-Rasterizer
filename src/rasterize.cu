@@ -23,6 +23,8 @@
 #define BLINN 1
 #define LAMBERT 0
 #define  PERSPECTIVE 1
+#define BILINEAR 0
+
 
 namespace {
 
@@ -144,6 +146,17 @@ void sendImageToPBO(uchar4 *pbo, int w, int h, glm::vec3 *image) {
     }
 }
 
+
+__device__
+glm::vec3 bilinearInterpolation(float a, float b, glm::vec3 txy, glm::vec3 txplus1, glm::vec3 typuls1, glm::vec3 txyplus1) 
+{
+	glm::vec3 temp = (1.f - a) * txy + a * txplus1;
+	glm::vec3 temp1 = (1.f - a) * typuls1 + a * txyplus1;
+	return temp * (1.f - b) + temp1 * b;
+}
+
+
+
 /** 
 * Writes fragment colors to the framebuffer
 */
@@ -191,17 +204,46 @@ void render(int w, int h, Fragment *fragmentBuffer, glm::vec3 *framebuffer) {
 		//therefore, when calculating uvindex, we need to multiply 3.
 		//moreover, when calculating the color value, we need to divide 255 to get its color value.
 		TextureData* tmptex = fragmentBuffer[index].dev_diffuseTex;
+		float ufloat = fragmentBuffer[index].texcoord0.x * texwidth;
+		float vfloat = fragmentBuffer[index].texcoord0.y * texheight;
 		int u = fragmentBuffer[index].texcoord0.x * texwidth;
 		int v = fragmentBuffer[index].texcoord0.y * texheight;
+
+
+#if BILINEAR
+		if (tmptex != NULL)
+		{
+		int pxy = 3 * (u + v * texwidth);
+		int pxplus1 = 3 * (u + 1 + v * texwidth);
+		int pyplus1 = 3 * (u + (v + 1) * texwidth);
+		int pxyplus1 = 3 * (u + 1 + (v + 1) * texwidth);
+
+		glm::vec3 texturexy(tmptex[pxy] / 255.f, tmptex[pxy + 1] / 255.f, tmptex[pxy + 2] / 255.f);
+		glm::vec3 texturexplus1(tmptex[pxplus1] / 255.f, tmptex[pxplus1 + 1] / 255.f, tmptex[pxplus1 + 2] / 255.f);
+		glm::vec3 textureyplus1(tmptex[pyplus1] / 255.f, tmptex[pyplus1 + 1] / 255.f, tmptex[pyplus1 + 2] / 255.f);
+		glm::vec3 texturexyplus1(tmptex[pxyplus1] / 255.f, tmptex[pxyplus1 + 1] / 255.f, tmptex[pxyplus1 + 2] / 255.f);
+
+		result = bilinearInterpolation((float)(ufloat - u), (float)(vfloat - v), texturexy, texturexplus1, textureyplus1, texturexyplus1);
+		}
+		else 
+		{
+			printf("DAMN\n");
+			result = tmpfrag.color;
+		}
+#else
 		//printf("%i %i\n", u, v);
-		int uvindex = 3*(u + v * texwidth);
+		int uvindex = 3 * (u + v * texwidth);
 		//result = glm::vec3(tmptex[uvindex+0] / 255.f, tmptex[uvindex+1] / 255.f, tmptex[uvindex + 2] / 255.f);
 		if (tmptex != NULL)
 		{
 			result = glm::vec3(tmptex[uvindex] / 255.f, tmptex[uvindex + 1] / 255.f, tmptex[uvindex + 2] / 255.f);
-			framebuffer[index] = result;
 		}
-
+		else
+		{
+			result = tmpfrag.color;
+		}
+#endif
+		framebuffer[index] = result;
     }
 }
 
