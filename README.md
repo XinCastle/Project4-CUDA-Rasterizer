@@ -45,7 +45,7 @@ Extra part:
 **Perspective Correct texture coordinate**
 * Original checkerboard texture:
 
-![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/No%20Bilinear%20Interpolation.png)
+![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/Without%20Perspective%20correction.gif) 
 
 * with perspective correctness:
 
@@ -70,7 +70,8 @@ Extra part:
 
 * Original Checkerboard  
 
-![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/Without%20Perspective%20correction.gif)    
+![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/No%20Bilinear%20Interpolation.png)
+   
 
 *  w/ Bilinear Interpolation
 
