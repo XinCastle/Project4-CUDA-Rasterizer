@@ -22,8 +22,11 @@
 
 #define BLINN 1
 #define LAMBERT 0
-#define  PERSPECTIVE 1
-#define BILINEAR 0
+#define PERSPECTIVE 1
+#define BILINEAR 1
+#define POINTSHADING 0
+#define LINESHADING 0
+#define SOLID 1
 
 
 namespace {
@@ -147,6 +150,13 @@ void sendImageToPBO(uchar4 *pbo, int w, int h, glm::vec3 *image) {
 }
 
 
+#define COL(C) (C / 255.0)
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
+
+
+
+
 __device__
 glm::vec3 bilinearInterpolation(float a, float b, glm::vec3 txy, glm::vec3 txplus1, glm::vec3 typuls1, glm::vec3 txyplus1) 
 {
@@ -154,6 +164,34 @@ glm::vec3 bilinearInterpolation(float a, float b, glm::vec3 txy, glm::vec3 txplu
 	glm::vec3 temp1 = (1.f - a) * typuls1 + a * txyplus1;
 	return temp * (1.f - b) + temp1 * b;
 }
+
+
+
+__host__ __device__
+glm::vec3 getTexColor(TextureData* tex, int stride, int u, int v)
+{
+	int idx = (u + v * stride) * 3;
+	return glm::vec3(COL(tex[idx + 0]),
+		COL(tex[idx + 1]),
+		COL(tex[idx + 2]));
+}
+
+
+__host__ __device__
+int clamp(int v, int a, int b)
+{
+	return MIN(MAX(a, v), b);
+}
+
+
+
+template<class T>
+__host__ __device__
+T lerp(float v, T a, T b)
+{
+	return a * (1.0f - v) + v * b;
+}
+
 
 
 
@@ -206,28 +244,44 @@ void render(int w, int h, Fragment *fragmentBuffer, glm::vec3 *framebuffer) {
 		TextureData* tmptex = fragmentBuffer[index].dev_diffuseTex;
 		float ufloat = fragmentBuffer[index].texcoord0.x * texwidth;
 		float vfloat = fragmentBuffer[index].texcoord0.y * texheight;
-		int u = fragmentBuffer[index].texcoord0.x * texwidth;
-		int v = fragmentBuffer[index].texcoord0.y * texheight;
+		//int u = fragmentBuffer[index].texcoord0.x * texwidth;
+		//int v = fragmentBuffer[index].texcoord0.y * texheight;
+		int u = clamp((int)ufloat, 0, texwidth - 1);
+		int v = clamp((int)vfloat, 0, texheight - 1);
 
 
 #if BILINEAR
+		//if (tmptex != NULL)
+		//{
+			//int pxy = 3 * (u + v * texwidth);
+			//int pxplus1 = 3 * (u + 1 + v * texwidth);
+			//int pyplus1 = 3 * (u + (v + 1) * texwidth);
+			//int pxyplus1 = 3 * (u + 1 + (v + 1) * texwidth);
+
+			//glm::vec3 texturexy(tmptex[pxy] / 255.f, tmptex[pxy + 1] / 255.f, tmptex[pxy + 2] / 255.f);
+			//glm::vec3 texturexplus1(tmptex[pxplus1] / 255.f, tmptex[pxplus1 + 1] / 255.f, tmptex[pxplus1 + 2] / 255.f);
+			//glm::vec3 textureyplus1(tmptex[pyplus1] / 255.f, tmptex[pyplus1 + 1] / 255.f, tmptex[pyplus1 + 2] / 255.f);
+			//glm::vec3 texturexyplus1(tmptex[pxyplus1] / 255.f, tmptex[pxyplus1 + 1] / 255.f, tmptex[pxyplus1 + 2] / 255.f);
+
+			//result = bilinearInterpolation((float)(ufloat - u), (float)(vfloat - v), texturexy, texturexplus1, textureyplus1, texturexyplus1);
+		//}
+		//else 
+		//{
+		//	printf("DAMN\n");
+		//	result = tmpfrag.color;
+		//}
 		if (tmptex != NULL)
 		{
-		int pxy = 3 * (u + v * texwidth);
-		int pxplus1 = 3 * (u + 1 + v * texwidth);
-		int pyplus1 = 3 * (u + (v + 1) * texwidth);
-		int pxyplus1 = 3 * (u + 1 + (v + 1) * texwidth);
-
-		glm::vec3 texturexy(tmptex[pxy] / 255.f, tmptex[pxy + 1] / 255.f, tmptex[pxy + 2] / 255.f);
-		glm::vec3 texturexplus1(tmptex[pxplus1] / 255.f, tmptex[pxplus1 + 1] / 255.f, tmptex[pxplus1 + 2] / 255.f);
-		glm::vec3 textureyplus1(tmptex[pyplus1] / 255.f, tmptex[pyplus1 + 1] / 255.f, tmptex[pyplus1 + 2] / 255.f);
-		glm::vec3 texturexyplus1(tmptex[pxyplus1] / 255.f, tmptex[pxyplus1 + 1] / 255.f, tmptex[pxyplus1 + 2] / 255.f);
-
-		result = bilinearInterpolation((float)(ufloat - u), (float)(vfloat - v), texturexy, texturexplus1, textureyplus1, texturexyplus1);
+			float du = ufloat - u;
+			float dv = vfloat - v;
+			auto x0y0 = getTexColor(tmptex, texwidth, u + 0, v + 0);
+			auto x1y0 = getTexColor(tmptex, texwidth, u + 1, v + 0);
+			auto x0y1 = getTexColor(tmptex, texwidth, u + 0, v + 1);
+			auto x1y1 = getTexColor(tmptex, texwidth, u + 1, v + 1);
+			result = lerp<glm::vec3>(dv, lerp<glm::vec3>(du, x0y0, x1y0), lerp<glm::vec3>(du, x0y1, x1y1));
 		}
-		else 
+		else
 		{
-			printf("DAMN\n");
 			result = tmpfrag.color;
 		}
 #else
@@ -827,6 +881,7 @@ __global__ void _rasterization(int totalNumPrimitives, Primitive *dev_primitives
 		glm::vec3 barycoord;
 		int pixelid;
 		
+#if SOLID
 		//loop every fragment in the bounding box
 		for (int x = xmin; x <= xmax; x++)
 		{
@@ -874,12 +929,86 @@ __global__ void _rasterization(int totalNumPrimitives, Primitive *dev_primitives
 						glm::vec2 numerator = bottom.x * triTexcoord0[0] + bottom.y * triTexcoord0[1] + bottom.z * triTexcoord0[2];
 						dev_fragmentBuffer[pixelid].texcoord0 = numerator * denominator_inv;
 #else
-						dev_fragmentBuffer[pixelIndex].texcoord0 = texcoord0;
+						dev_fragmentBuffer[pixelid].texcoord0 = texB;
 #endif
 					}
 				}
 			}
 		}
+#elif POINTSHADING
+		for (int x = xmin; x <= xmax; x++)
+		{
+			for (int y = ymin; y < ymax; y++)
+			{
+				glm::vec2 tmpfrag(x, y);
+				//calculate the barycentriccoordinate of x,y
+				barycoord = calculateBarycentricCoordinate(tri, tmpfrag);
+				if (isBarycentricCoordOnCorner(barycoord))
+				{
+					//first get its pixel id to call atomicMin
+					pixelid = x + y*width;
+
+					//get z coordinate by calling getZAtCoordinate function. Times INT_MIN to convert it into
+					//integer for using atomicMin in the following.
+					depth = getZAtCoordinate(barycoord, tri) * INT_MIN;
+					//call atomicMin. If there is only one fragment on this pixel, nothing happens, the depth
+					//calculated will substitute the old value saved in dev_depth. If there are several fragments
+					//on this same pixel, the characteristic of atomicMin will work. Every time there will only
+					//be one thread get into this comparison and pass its value to dev_depth. Then another one gets in
+					atomicMin(&dev_depth[pixelid], depth);
+					int fragid = pixelid;
+
+					if (dev_depth[pixelid] == depth)
+					{
+						dev_fragmentBuffer[pixelid].color = glm::vec3(0.1, 1, 1);
+						//pass the value calculated using barycentric method to fragmentbuffer.
+						glm::vec3 eyeposB = barycoord.x * triEyePos[0] + barycoord.y * triEyePos[1] + barycoord.z * triEyePos[2];
+						dev_fragmentBuffer[pixelid].eyePos = eyeposB;
+						glm::vec3 eyenorB = glm::normalize(barycoord.x * triEyeNor[0] + barycoord.y * triEyeNor[1] + barycoord.z * triEyeNor[2]);
+						dev_fragmentBuffer[pixelid].eyeNor = eyenorB;
+						dev_fragmentBuffer[pixelid].dev_diffuseTex = NULL;
+					}
+				}
+			}
+		}
+#elif LINESHADING
+		for (int x = xmin; x <= xmax; x++)
+		{
+			for (int y = ymin; y < ymax; y++)
+			{
+				glm::vec2 tmpfrag(x, y);
+				//calculate the barycentriccoordinate of x,y
+				barycoord = calculateBarycentricCoordinate(tri, tmpfrag);
+				if (isBarycentricCoordOnBounds(barycoord))
+				{
+					//first get its pixel id to call atomicMin
+					pixelid = x + y*width;
+
+					//get z coordinate by calling getZAtCoordinate function. Times INT_MIN to convert it into
+					//integer for using atomicMin in the following.
+					depth = getZAtCoordinate(barycoord, tri) * INT_MIN;
+					//call atomicMin. If there is only one fragment on this pixel, nothing happens, the depth
+					//calculated will substitute the old value saved in dev_depth. If there are several fragments
+					//on this same pixel, the characteristic of atomicMin will work. Every time there will only
+					//be one thread get into this comparison and pass its value to dev_depth. Then another one gets in
+					atomicMin(&dev_depth[pixelid], depth);
+					int fragid = pixelid;
+
+					if (dev_depth[pixelid] == depth)
+					{
+						dev_fragmentBuffer[pixelid].color = glm::vec3(0.1, 1, 1);
+						//pass the value calculated using barycentric method to fragmentbuffer.
+						glm::vec3 eyeposB = barycoord.x * triEyePos[0] + barycoord.y * triEyePos[1] + barycoord.z * triEyePos[2];
+						dev_fragmentBuffer[pixelid].eyePos = eyeposB;
+						glm::vec3 eyenorB = glm::normalize(barycoord.x * triEyeNor[0] + barycoord.y * triEyeNor[1] + barycoord.z * triEyeNor[2]);
+						dev_fragmentBuffer[pixelid].eyeNor = eyenorB;
+						dev_fragmentBuffer[pixelid].dev_diffuseTex = NULL;
+					}
+				}
+			}
+		}
+#endif
+
 	}
 }
 
