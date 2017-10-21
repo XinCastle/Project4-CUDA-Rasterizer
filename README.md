@@ -7,7 +7,7 @@ CUDA Rasterizer
 * Tested on:
   *Windows 10, i7-4702HQ @ 2.20GHz 8GB, GTX 870M 3072MB (Personal Laptop)
 
-
+.
 ### Description&Features
 -------------
 **In this project, I use CUDA to implement a simplified rasterized graphics pipeline, similar to the OpenGL pipeline. Specific content and features are listed below.**
@@ -28,7 +28,7 @@ Extra part:
 * (still working) SSAO & Tile base pipeline
 
 
-
+.
 ### Result in Progress
 -------------
 **Result Screenshot**
@@ -70,7 +70,7 @@ Extra part:
 
 * Original Checkerboard  
 
-![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/No%20Bilinear%20Interpolation.png)    
+![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/Without%20Perspective%20correction.gif)    
 
 *  w/ Bilinear Interpolation
 
