@@ -32,12 +32,15 @@ Extra part:
 ### Result in Progress
 -------------
 **Result Screenshot**
+
 ![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/Overall%20sample1.gif)
+
 ![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/Overall%20Sample2.gif)
 * The duck and CesiumMilkTruck object with texture
-w/ perspective correctness & bilinear interpolation
-Blinn Phong and lambert are both implemented
+* w/ perspective correctness & bilinear interpolation
+* Blinn Phong and lambert are both implemented
 
+.
 
 **Perspective Correct texture coordinate**
 * Original checkerboard texture:
@@ -61,10 +64,18 @@ Blinn Phong and lambert are both implemented
 #endif
 ```
 
+.
+
 **Bilinear Interpolation**
-Original Checkerboard  | w/ Bilinear Interpolation
-:-------------------------:|:-------------------------:
-![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/No%20Bilinear%20Interpolation.png)  |  ![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/Has%20Bilinear%20Interpolation.png)
+
+* Original Checkerboard  
+
+![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/No%20Bilinear%20Interpolation.png)    
+
+*  w/ Bilinear Interpolation
+
+![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/Has%20Bilinear%20Interpolation.png)
+
 * The mosaic of original checkerboard is erased by applying bilinear interpolation method below. (reference: https://en.wikipedia.org/wiki/Bilinear_interpolation)
 ```
 __device__
@@ -76,6 +87,8 @@ glm::vec3 bilinearInterpolation(float a, float b, glm::vec3 txy, glm::vec3 txplu
 }
 ```
 
+.
+
 
 **Points and lines Primitives**
 * Points Primitives
@@ -86,10 +99,15 @@ glm::vec3 bilinearInterpolation(float a, float b, glm::vec3 txy, glm::vec3 txplu
 
 ![](https://github.com/XinCastle/Project4-CUDA-Rasterizer/blob/master/renders/line%20example.gif)
 
+.
+
 **SSAO**
 * still working. Will update later.
 
+.
+
 ### Point and lines Primitives Optimization
+-------------
 * There is a problem of simply checking whether the point is inside the bounding box or not for points primitive implementation because there are a number of points whose fragment is in outside of bounding box but the point itself is in. In that case, the naive approach will lose many points which should be drawn.
 * My approach: instead of checking whether the point is inside the box, I check whether the point is around the bounding box by setting a coefficient in barycentric function so that more points will show in the result. Same idea for lines (partial code for lines primitive condition below).
 ```
